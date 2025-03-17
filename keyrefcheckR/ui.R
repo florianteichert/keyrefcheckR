@@ -1,6 +1,7 @@
 library(shiny)
 library(readxl)
 library(tidyverse)
+library(rclipboard)
 library(janitor)
 library(DT)
 library(shinyjs)
