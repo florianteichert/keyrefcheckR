@@ -1,0 +1,219 @@
+library(shiny)
+library(readxl)
+library(rclipboard)
+library(janitor)
+library(tidyverse)
+library(revtools)
+library(DT)
+library(shinyjs)
+library(bibliometrix)
+options(shiny.maxRequestSize = 50 * 1024^2)
+
+server <- function(input, output) {
+
+  output$download_picos_template <- downloadHandler(
+    filename = "picos_template.xlsx",
+    content = function(file) {
+      file.copy("picos_template.xlsx", file)
+    }
+  )
+  
+  output$instruction_1 <- renderText({
+    HTML("Upload reference studies to <a href='https://sr-accelerator.com/#/wordfreq' target='_blank'>Word Frequency Analyzer</a>. Paste output into PICOS Template. Draft
+          PICOS. Upload modified file.")
+  })
+  
+  output$instruction_2 <- renderText({
+    HTML("Run search in <a href='https://pubmed.ncbi.nlm.nih.gov/' target='_blank'>PubMed</a> and export search results.<br>
+         <a href='https://youtu.be/wQ79ajl8Cjs' target='_blank'>How to export citations?</a>")
+  })
+
+  
+  output$display_picos <- renderText({
+    
+    picos <- input$upload_picos
+    if (is.null(picos))
+      return(NULL)
+    
+    picos <- readxl::read_excel(picos$datapath, sheet = "copy final PICOS here")
+    picos <- picos %>%
+      map(~ .[!is.na(.)]) %>%
+      keep(~ length(.) > 0) %>%
+      map(~ {
+        case_when(
+          str_detect(., "\\[mh\\]") ~ paste0("\"", str_replace(., "\\[mh\\]", ""), "\"[MeSH Terms]"),
+          str_detect(., "\\[mh:noexp\\]") ~ paste0("\"", str_replace(., "\\[mh:noexp\\]", ""), "\"[MeSH Terms:noexp]"),
+          str_detect(., "\\[majr\\]") ~ paste0("\"", str_replace(., "\\[majr\\]", ""), "\"[MeSH Major Topic]"),
+          str_detect(., "\\[majr:noexp\\]") ~ paste0("\"", str_replace(., "\\[majr:noexp\\]", ""), "\"[MeSH Major Topic:noexp]"),
+          str_detect(., "\\[sh\\]") ~ paste0("\"", str_replace(., "\\[sh\\]", ""), "\"[MeSH Subheading]"),
+          str_detect(., "\\[sh:noexp\\]") ~ paste0("\"", str_replace(., "\\[sh:noexp\\]", ""), "\"[MeSH Subheading:noexp]"),
+          str_detect(., "~\\d+") ~ paste0("\"", str_replace(., "~\\d+", ""), "\"[Title/Abstract: ~", str_extract(., "\\d+"), "]"),
+          TRUE ~ paste0("\"", ., "\"[Title/Abstract]")
+        )
+      }) %>%
+      map(~ str_replace_all(., "&", "and")) %>% 
+      map(~ paste(., collapse = " OR ")) %>%
+      paste0("(", ., ")") %>%
+      paste(collapse = " AND ")
+    
+    output$copy_picos <- renderUI({
+      rclipButton(
+        inputId = "copy_picos",
+        label = "Copy PICOS",
+        clipText = picos, 
+        icon = icon("clipboard")
+      )
+    })
+    return(picos)
+  })
+  
+  
+  output$display_missing_PMID <- DT::renderDT({
+    
+    if (is.null(input$upload_ref_studies)) {
+      return(NULL)
+    }
+    
+    infile <- input$upload_ref_studies
+    ref_studies <- read_csv(infile$datapath) %>% clean_names()
+    
+    ref_studies_pmid <- ref_studies$pmid
+    
+    if (any(is.na(ref_studies_pmid))) {
+      
+      output$text_missing_PMID <- renderText({
+        HTML("<b><font color='red'>Warning!</font></b> References below do not contain a PubMed Identifier (PMID) and will not be considered for search validation")
+      })
+      
+      no_pmid <- which(is.na(ref_studies_pmid)) 
+      no_pmid_table <- ref_studies[no_pmid,] %>% 
+        mutate(authors = word(authors), url = word(ur_ls, sep = ";"), publication_year = as.character(publication_year)) %>%
+        mutate(url = paste0("<a href='", url,"' target='_blank'>", url,"</a>")) %>%
+        arrange(publication_year) %>% 
+        select("First author" = authors, Journal = journal, "Publication year" = publication_year, URL = url) 
+      
+      return(no_pmid_table)
+      
+    } else {
+      
+      output$text_missing_PMID <- NULL
+      return(NULL)
+      
+    }
+    
+  }, options = list(dom = "t", scrollY="13vh", ordering = FALSE), escape = FALSE)
+  
+  
+  output$display_search_metrics <- renderTable({
+    
+    if (is.null(input$upload_ref_studies) || is.null(input$upload_search_results)) {
+      return(NULL)
+    }
+    
+    infile <- input$upload_ref_studies
+    ref_studies <- read_csv(infile$datapath) %>% clean_names() # if use read_bibliography column names are changed
+    
+    ref_studies_pmid <- ref_studies$pmid
+    
+    infile <- input$upload_search_results
+   # search_results <- read_bibliography(infile$datapath, return_df = TRUE) %>% clean_names()
+    search_results <- convert2df(file = infile$datapath, dbsource = "pubmed", format = "plaintext") %>% clean_names() %>% tibble()
+   
+    ref_studies_pmid <- na.omit(ref_studies_pmid)
+    
+    results <- sapply(ref_studies_pmid, function(a_list) {
+      if (any(search_results$pmid == a_list)) {
+        return(c(a_list, 1))
+      } else {
+        return(c(a_list, 0))
+      }
+    })
+    
+    included <- sum(results[2,] == 1)
+    not_included <- sum(results[2,] == 0)
+    total_results <- nrow(search_results) # total results often called yield in the search literature
+    sensitivity <- included / (included + not_included) # n relevant reports identified / total n of relevant records
+    precision <- included / total_results # n relevant reports identified / total records identified
+    number_needed_to_read <- as.character(round(1 / precision, digits = 0)) # or round(total_results / included)
+    
+    search_metrics <- data.frame("Total results" = total_results, Included = included, "Not included" = not_included, 
+                                 Sensitivity = sensitivity, Precision = precision, "Number needed to read" = number_needed_to_read
+                                 , check.names = FALSE)
+    
+    search_metrics$Sensitivity <- scales::percent(search_metrics$Sensitivity)
+    search_metrics$Precision <- scales::percent(search_metrics$Precision)
+    
+    
+    output$text_search_metrics <- renderUI({
+      tags$h4("Search metrics")
+    })
+    
+    output$display_missing_studies <- DT::renderDT ({ 
+      if(not_included > 0) {
+        
+        shinyjs::show("download_studies_not_included")
+        
+        output$text_missing_studies <- renderText({
+          "Reference studies not included in the PubMed search results"
+        })
+        
+        refs_not_included <- ref_studies %>% 
+          filter(pmid %in% results[1, results[2,] == 0]) 
+        
+        write_csv(refs_not_included, "references_not_included.csv")
+        
+        refs_not_included <- refs_not_included %>%
+          mutate(authors = word(authors), url = paste0("https://pubmed.ncbi.nlm.nih.gov/", pmid), publication_year = as.character(publication_year)) %>%
+          arrange(publication_year) 
+        
+        # output$copy_pmids_not_included <- renderUI({
+        #   rclipButton(
+        #     inputId = "copy_pmids_not_included",
+        #     label = "Copy PMIDs",
+        #     clipText = pmids_not_included, 
+        #     icon = icon("clipboard")
+        #   )
+        # }) Copy PMIDsx
+      
+        #   output$download_studies_not_included <- renderUI({
+        #   downloadButton(inputId = "dowload_studies_not_included", 
+        #                  label = "Download references")
+        # })
+          #
+       # toggle(download_studies_not_included)
+        
+          output$download_studies_not_included <- downloadHandler(
+            filename = "references_not_included.csv",
+            content = function(file) {
+              file.copy("references_not_included.csv", file)
+            }
+          )
+        
+        # output$open_missing_studies <- renderUI({
+        #   actionButton("button", "Open reference(s) in new tab")
+        # })
+        # observeEvent(input$button,{
+        #   lapply(refs_not_included$url, browseURL)
+        # }) Browse url does not work online
+        
+        refs_not_included_disp <- refs_not_included %>% 
+          mutate(url = paste0("<a href='", url,"' target='_blank'>", url,"</a>")) %>% 
+          select("First author" = authors, Journal = journal, "Publication year" = publication_year, URL = url)
+        
+        return(refs_not_included_disp)
+        
+      }
+      shinyjs::hide("download_studies_not_included")
+      return(NULL)
+    }, options = list(dom = "t", scrollY="13vh", ordering = FALSE), escape = FALSE)
+    
+    output$link_search_metrics <- renderText({
+      HTML("Sensitivity is defined as the number of relevant reports identified divided by the total number of relevant reports 
+             in the resource (in this case the reference studies). Precision is defined as the number of relevant reports identified divided by the total number of reports identified. <a href='https://training.cochrane.org/handbook/current/chapter-04#section-4-4-3' target='_blank'>Cochrane Handbook</a><br><br>Learn more about search metrics <a href='https://www.ncbi.nlm.nih.gov/pubmed/29526555' target='_blank'>here</a>.")
+    })
+    
+    return(search_metrics)
+    
+  })
+}
+

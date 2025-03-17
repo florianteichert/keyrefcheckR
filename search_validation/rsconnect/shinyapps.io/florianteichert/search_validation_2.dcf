@@ -1,0 +1,12 @@
+name: search_validation_2
+title: search_validation_2
+username: florianteichert
+account: florianteichert
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 10907127
+bundleId: 8133887
+url: https://florianteichert.shinyapps.io/search_validation_2/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE
