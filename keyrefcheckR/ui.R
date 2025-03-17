@@ -1,11 +1,10 @@
 library(shiny)
 library(readxl)
-library(rclipboard)
-library(janitor)
 library(tidyverse)
-library(revtools)
+library(janitor)
 library(DT)
 library(shinyjs)
+library(bibliometrix)
 
 ui <- fluidPage(
   
@@ -23,8 +22,6 @@ ui <- fluidPage(
       br(),
       
       downloadButton("download_picos_template", label = "Download PICOS Template"),
-      
-      # tags$a("Go to Word Frequency Analyzer", href="https://sr-accelerator.com/#/wordfreq", target="_blank"),  
       
       br(),
       br(),
@@ -46,11 +43,17 @@ ui <- fluidPage(
       br(),
       
       tags$h4("2. Upload reference studies and search results"),
-      tags$p("Reference studies have to be in a .csv file with a column named PMID containing the individual PubMed IDs."), # example file?
+      tags$p("Reference studies have to be uploaded in a .csv file with a specific structure (see example)."), 
+      
+      
+      downloadButton("download_example_ref_studies", label = "Example file"),
+      
+      br(),
+      br(),
       
       fileInput("upload_ref_studies",
                 "Load reference studies (.csv)",
-                accept = c(".csv") # ".nbib"write coder bei nbib column umbennent pubmed_id -> pmid
+                accept = c(".csv") 
       ),
       
       fileInput("upload_search_results",
@@ -61,7 +64,6 @@ ui <- fluidPage(
     
     mainPanel(
       
-      #htmlOutput("text_missing_PMID"),
       htmlOutput("text_missing_PMID"),
       DT::DTOutput("display_missing_PMID"),
       
@@ -72,10 +74,6 @@ ui <- fluidPage(
       DT::DTOutput("display_missing_studies"),
       
       br(),
-      
-      # uiOutput("open_missing_studies"),
-      #uiOutput("copy_pmids_not_included"),
-      #uiOutput("download_studies_not_included"),
       
       hidden(downloadButton("download_studies_not_included", label = "Download references")),
     

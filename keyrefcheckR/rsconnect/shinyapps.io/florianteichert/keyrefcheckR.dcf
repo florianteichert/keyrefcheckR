@@ -1,0 +1,12 @@
+name: keyrefcheckR
+title: keyrefcheckR
+username: florianteichert
+account: florianteichert
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 14263385
+bundleId: 9957616
+url: https://florianteichert.shinyapps.io/keyrefcheckR/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE

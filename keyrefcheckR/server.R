@@ -1,12 +1,11 @@
 library(shiny)
 library(readxl)
-library(rclipboard)
-library(janitor)
 library(tidyverse)
-library(revtools)
+library(janitor)
 library(DT)
 library(shinyjs)
 library(bibliometrix)
+
 options(shiny.maxRequestSize = 50 * 1024^2)
 
 server <- function(input, output) {
@@ -67,6 +66,12 @@ server <- function(input, output) {
     return(picos)
   })
   
+  output$download_example_ref_studies <- downloadHandler(
+    filename = "example_ref_studies.csv",
+    content = function(file) {
+      file.copy("example_ref_studies.csv", file)
+    }
+  )
   
   output$display_missing_PMID <- DT::renderDT({
     
@@ -111,12 +116,12 @@ server <- function(input, output) {
     }
     
     infile <- input$upload_ref_studies
-    ref_studies <- read_csv(infile$datapath) %>% clean_names() # if use read_bibliography column names are changed
+    ref_studies <- read_csv(infile$datapath) %>% clean_names() 
     
     ref_studies_pmid <- ref_studies$pmid
     
     infile <- input$upload_search_results
-   # search_results <- read_bibliography(infile$datapath, return_df = TRUE) %>% clean_names()
+
     search_results <- convert2df(file = infile$datapath, dbsource = "pubmed", format = "plaintext") %>% clean_names() %>% tibble()
    
     ref_studies_pmid <- na.omit(ref_studies_pmid)
@@ -131,10 +136,10 @@ server <- function(input, output) {
     
     included <- sum(results[2,] == 1)
     not_included <- sum(results[2,] == 0)
-    total_results <- nrow(search_results) # total results often called yield in the search literature
-    sensitivity <- included / (included + not_included) # n relevant reports identified / total n of relevant records
-    precision <- included / total_results # n relevant reports identified / total records identified
-    number_needed_to_read <- as.character(round(1 / precision, digits = 0)) # or round(total_results / included)
+    total_results <- nrow(search_results)
+    sensitivity <- included / (included + not_included) 
+    precision <- included / total_results 
+    number_needed_to_read <- as.character(round(1 / precision, digits = 0)) 
     
     search_metrics <- data.frame("Total results" = total_results, Included = included, "Not included" = not_included, 
                                  Sensitivity = sensitivity, Precision = precision, "Number needed to read" = number_needed_to_read
@@ -166,35 +171,12 @@ server <- function(input, output) {
           mutate(authors = word(authors), url = paste0("https://pubmed.ncbi.nlm.nih.gov/", pmid), publication_year = as.character(publication_year)) %>%
           arrange(publication_year) 
         
-        # output$copy_pmids_not_included <- renderUI({
-        #   rclipButton(
-        #     inputId = "copy_pmids_not_included",
-        #     label = "Copy PMIDs",
-        #     clipText = pmids_not_included, 
-        #     icon = icon("clipboard")
-        #   )
-        # }) Copy PMIDsx
-      
-        #   output$download_studies_not_included <- renderUI({
-        #   downloadButton(inputId = "dowload_studies_not_included", 
-        #                  label = "Download references")
-        # })
-          #
-       # toggle(download_studies_not_included)
-        
           output$download_studies_not_included <- downloadHandler(
             filename = "references_not_included.csv",
             content = function(file) {
               file.copy("references_not_included.csv", file)
             }
           )
-        
-        # output$open_missing_studies <- renderUI({
-        #   actionButton("button", "Open reference(s) in new tab")
-        # })
-        # observeEvent(input$button,{
-        #   lapply(refs_not_included$url, browseURL)
-        # }) Browse url does not work online
         
         refs_not_included_disp <- refs_not_included %>% 
           mutate(url = paste0("<a href='", url,"' target='_blank'>", url,"</a>")) %>% 

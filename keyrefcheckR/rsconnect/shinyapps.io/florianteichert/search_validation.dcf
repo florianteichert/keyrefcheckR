@@ -5,9 +5,7 @@ account: florianteichert
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 8352563
-bundleId: 6865763
+bundleId: 9957579
 url: https://florianteichert.shinyapps.io/search_validation/
-when: 1676887838.5983
-lastSyncTime: 1676887838.59832
 asMultiple: FALSE
 asStatic: FALSE
