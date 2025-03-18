@@ -43,7 +43,7 @@ server <- function(input, output) {
   
   output$instruction_1 <- renderText({
     HTML("Optional: Extract MeSH terms from a .txt file from <a href='https://hgserver2.amc.nl/cgi-bin/miner/miner2.cgi' target='_blank'>PubReminer</a>.<br>
-         <a href='https://youtu.be/wQ79ajl8Cjs' target='_blank'>How to export the file?</a>")
+         <a href='https://youtu.be/KfCD6rIUbcg' target='_blank'>How to export the file?</a>")
   })
   
   output$instruction_2 <- renderText({
