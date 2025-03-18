@@ -5,7 +5,7 @@ account: florianteichert
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 14263385
-bundleId: 9962048
+bundleId: 9962114
 url: https://florianteichert.shinyapps.io/keyrefcheckR/
 version: 1
 asMultiple: FALSE
