@@ -17,18 +17,42 @@ ui <- fluidPage(
     
     sidebarPanel(
       
-      tags$h4("1. Build your PICOS"),
-      htmlOutput("instruction_1"),
+      tags$h4("1. Upload reference studies"),
+      tags$p("Reference studies have to be uploaded in a .csv file with a specific structure (see example)."), 
+      
+      downloadButton("download_example_ref_studies", label = "Example file"),
       
       br(),
+      br(),
+      
+      fileInput("upload_ref_studies",
+                "Load reference studies (.csv)",
+                accept = c(".csv") 
+      ),
+      
+      uiOutput("copy_pmid"),
+    
+      br(),
+      
+      tags$h4("2. Build your PICOS"),
+      tags$p("Follow instructions in the PICOS template."),
       
       downloadButton("download_picos_template", label = "Download PICOS Template"),
       
       br(),
       br(),
       
+      htmlOutput("instruction_1"),
+      
+      br(),
+      
+      fileInput("upload_mesh", "Upload MeSH file (.txt)", accept = ".txt"),
+      uiOutput("copy_mesh_terms"),
+      
+      br(),
+      
       fileInput("upload_picos",
-                "Load PICOS",
+                "Load modified PICOS template",
                 accept = c(".xlsx")
       ),
       
@@ -43,19 +67,10 @@ ui <- fluidPage(
 
       br(),
       
-      tags$h4("2. Upload reference studies and search results"),
-      tags$p("Reference studies have to be uploaded in a .csv file with a specific structure (see example)."), 
-      
-      
-      downloadButton("download_example_ref_studies", label = "Example file"),
+      tags$h4("3. Upload search results"),
       
       br(),
       br(),
-      
-      fileInput("upload_ref_studies",
-                "Load reference studies (.csv)",
-                accept = c(".csv") 
-      ),
       
       fileInput("upload_search_results",
                 "Load PubMed search results (.nbib)",

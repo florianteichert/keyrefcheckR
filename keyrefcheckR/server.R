@@ -18,9 +18,32 @@ server <- function(input, output) {
     }
   )
   
+  observeEvent(input$upload_mesh, {
+    req(input$upload_mesh)
+    
+    pubreminer <- read.delim(input$upload_mesh$datapath, header = FALSE, comment.char = "#")
+    
+    mesh_terms <- pubreminer %>%
+      select(V2 = V2, V1 = V1) %>%
+      rename(mesh_freq = V1, mesh_terms = V2) %>%
+      filter(grepl("\\[mh\\]|\\[sh\\]", mesh_terms)) %>%
+      mutate(mesh_terms = tolower(mesh_terms),
+             id = 1:n())
+    
+    output$copy_mesh_terms <- renderUI({
+      rclipButton(
+        inputId = "copy_mesh_terms",
+        label = "Copy Mesh Terms",
+        clipText = paste(mesh_terms$mesh_terms, collapse = "\n"),
+        icon = icon("clipboard")
+      )
+    })
+  })
+  
+  
   output$instruction_1 <- renderText({
-    HTML("Upload reference studies to <a href='https://sr-accelerator.com/#/wordfreq' target='_blank'>Word Frequency Analyzer</a>. Paste output into PICOS Template. Draft
-          PICOS. Upload modified file.")
+    HTML("Optional: Extract MeSH terms from a .txt file from <a href='https://hgserver2.amc.nl/cgi-bin/miner/miner2.cgi' target='_blank'>PubReminer</a>.<br>
+         <a href='https://youtu.be/wQ79ajl8Cjs' target='_blank'>How to export the file?</a>")
   })
   
   output$instruction_2 <- renderText({
@@ -73,6 +96,27 @@ server <- function(input, output) {
       file.copy("example_ref_studies.csv", file)
     }
   )
+  
+  observeEvent(input$upload_ref_studies, {
+    req(input$upload_ref_studies)
+    
+    infile <- input$upload_ref_studies
+    ref_studies <- read_csv(infile$datapath) %>% clean_names()
+    
+    if ("pmid" %in% names(ref_studies)) {
+      pmid_list <- paste(na.omit(ref_studies$pmid), collapse = ",")
+      
+      output$copy_pmid <- renderUI({
+        rclipButton(
+          inputId = "copy_pmid",
+          label = "Copy PMIDs",
+          clipText = pmid_list,
+          icon = icon("clipboard")
+        )
+      })
+    }
+  })
+  
   
   output$display_missing_PMID <- DT::renderDT({
     
